@@ -162,7 +162,7 @@
 //       };
 //     }),
 // });
-
+import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { chatterbox } from "@/lib/chatterbox-client";
@@ -265,6 +265,12 @@ export const generationsRouter = createTRPCRouter({
         parseAs: "arrayBuffer",
       });
 
+      Sentry.logger.info("Generation started", {
+        orgId: ctx.orgId,
+        voiceId: input.voiceId,
+        textLength: input.text.length,
+      });
+
       console.log("[generations.create] Chatterbox response:", {
         hasData: !!data,
         isArrayBuffer: data instanceof ArrayBuffer,
@@ -328,6 +334,11 @@ export const generationsRouter = createTRPCRouter({
           data: { r2ObjectKey },
         });
         console.log("[generations.create] DB updated with r2Key");
+
+        Sentry.logger.info("Audio generated", {
+          orgId: ctx.orgId,
+          generationId: generation.id,
+        });
       } catch (err) {
         console.error("[generations.create] STORAGE FAILED:", err);
         if (generationId) {
@@ -337,6 +348,10 @@ export const generationsRouter = createTRPCRouter({
               console.error("[generations.create] cleanup failed:", cleanupErr),
             );
         }
+        Sentry.logger.error("Generation failed", {
+          orgId: ctx.orgId,
+          voiceId: input.voiceId,
+        });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to store generated audio",
